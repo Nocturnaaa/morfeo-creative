@@ -1,16 +1,14 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Image from 'next/image'
 
 interface Props {
   label: string
   field: string
   onUpload: (field: string, url: string) => void
-  optional?: boolean
 }
 
-export default function ImageUpload({ label, field, onUpload, optional = true }: Props) {
+export default function ImageUpload({ label, field, onUpload }: Props) {
   const [preview, setPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,12 +18,10 @@ export default function ImageUpload({ label, field, onUpload, optional = true }:
     setError(null)
     setUploading(true)
 
-    // Local preview
     const reader = new FileReader()
     reader.onload = (e) => setPreview(e.target?.result as string)
     reader.readAsDataURL(file)
 
-    // Upload to server
     const formData = new FormData()
     formData.append('file', file)
     formData.append('field', field)
@@ -36,7 +32,7 @@ export default function ImageUpload({ label, field, onUpload, optional = true }:
       if (!res.ok) throw new Error(data.error)
       onUpload(field, data.url)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al subir imagen'
+      const message = err instanceof Error ? err.message : 'Error al subir'
       setError(message)
       setPreview(null)
     } finally {
@@ -50,44 +46,66 @@ export default function ImageUpload({ label, field, onUpload, optional = true }:
     if (file) handleFile(file)
   }
 
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setPreview(null)
+    onUpload(field, '')
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
   return (
-    <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700">
-        {label} {optional && <span className="text-gray-400">(opcional)</span>}
-      </label>
+    <div>
+      <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        {label}
+      </p>
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => !preview && inputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className={`
-          relative border-2 border-dashed rounded-xl cursor-pointer
-          flex items-center justify-center min-h-[120px] transition-colors
-          ${preview ? 'border-purple-400 bg-purple-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}
-        `}
+        style={{
+          position: 'relative',
+          border: `1px dashed ${preview ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: '6px',
+          minHeight: '80px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: preview ? 'default' : 'pointer',
+          background: preview ? 'var(--accent-dim)' : 'var(--surface)',
+          transition: 'all 0.2s ease',
+          overflow: 'hidden',
+        }}
       >
         {uploading ? (
-          <div className="text-center text-sm text-gray-500">
-            <div className="animate-spin text-2xl mb-1">⏳</div>
-            Subiendo...
-          </div>
+          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>subiendo...</span>
         ) : preview ? (
-          <div className="relative w-full h-[120px]">
-            <Image src={preview} alt={label} fill className="object-contain rounded-xl p-2" />
-          </div>
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt={label} style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+            <button
+              onClick={handleClear}
+              style={{
+                position: 'absolute', top: '4px', right: '4px',
+                background: 'rgba(0,0,0,0.7)', border: 'none',
+                color: 'white', width: '20px', height: '20px',
+                borderRadius: '50%', cursor: 'pointer', fontSize: '11px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >✕</button>
+          </>
         ) : (
-          <div className="text-center text-sm text-gray-400 p-4">
-            <div className="text-2xl mb-1">📎</div>
-            <div>Click o arrastrá aquí</div>
-            <div className="text-xs mt-1">PNG, JPG, WEBP</div>
+          <div style={{ textAlign: 'center', color: 'var(--text-faint)' }}>
+            <div style={{ fontSize: '18px', marginBottom: '2px' }}>+</div>
+            <div style={{ fontSize: '10px', letterSpacing: '0.05em' }}>PNG · JPG · WEBP</div>
           </div>
         )}
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p style={{ color: 'var(--error)', fontSize: '11px', marginTop: '4px' }}>{error}</p>}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        className="hidden"
+        style={{ display: 'none' }}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
       />
     </div>

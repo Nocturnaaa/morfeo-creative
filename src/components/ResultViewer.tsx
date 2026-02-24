@@ -1,23 +1,33 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 
 interface Props {
   runId: string
+  brand?: string
+  aspectRatio?: string
   onComplete?: (outputUrl: string) => void
 }
 
-export default function ResultViewer({ runId, onComplete }: Props) {
+const STATUS_LABELS: Record<string, string> = {
+  'not-started': 'en cola',
+  'running': 'generando',
+  'uploading': 'procesando',
+  'success': 'completado',
+  'failed': 'error',
+}
+
+export default function ResultViewer({ runId, brand, aspectRatio, onComplete }: Props) {
   const [status, setStatus] = useState<string>('running')
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
-  const [dots, setDots] = useState('')
+  const [elapsed, setElapsed] = useState(0)
 
-  // Animated dots
+  // Elapsed timer
   useEffect(() => {
-    const i = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500)
+    if (status === 'success' || status === 'failed') return
+    const i = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => clearInterval(i)
-  }, [])
+  }, [status])
 
   // Poll status
   useEffect(() => {
@@ -32,9 +42,7 @@ export default function ResultViewer({ runId, onComplete }: Props) {
           setOutputUrl(data.output_url)
           onComplete?.(data.output_url)
         }
-      } catch {
-        // retry
-      }
+      } catch { /* retry */ }
     }
 
     poll()
@@ -44,48 +52,112 @@ export default function ResultViewer({ runId, onComplete }: Props) {
 
   if (status === 'failed') {
     return (
-      <div className="text-center py-8 text-red-500">
-        <div className="text-4xl mb-2">❌</div>
-        <p>El workflow falló. Intentá de nuevo.</p>
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ color: 'var(--error)', fontSize: '28px', marginBottom: '12px' }}>✕</div>
+        <p style={{ color: 'var(--error)', fontSize: '13px' }}>El workflow falló.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '6px' }}>Revisá los inputs e intentá de nuevo.</p>
       </div>
     )
   }
 
   if (status !== 'success' || !outputUrl) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <div className="text-4xl mb-3 animate-pulse">🎨</div>
-        <p className="font-medium text-gray-700">Generando tu visual{dots}</p>
-        <p className="text-sm mt-1 text-gray-400">Esto puede tomar unos segundos</p>
-        <div className="mt-4 w-48 mx-auto bg-gray-200 rounded-full h-1.5">
-          <div className="bg-purple-500 h-1.5 rounded-full animate-pulse w-2/3"></div>
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        {/* Animated loader */}
+        <div style={{ position: 'relative', width: '48px', height: '48px', margin: '0 auto 24px' }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            border: '1px solid var(--border)',
+            borderTop: '1px solid var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 1.2s linear infinite',
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
+        <p style={{ color: 'var(--text)', fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '8px' }}>
+          {STATUS_LABELS[status] || status}
+        </p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+          {elapsed}s — el workflow está procesando tu visual
+        </p>
+        <div style={{ marginTop: '24px', display: 'flex', gap: '4px', justifyContent: 'center' }}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} style={{
+              width: '3px', height: '20px',
+              background: 'var(--border)',
+              borderRadius: '2px',
+              animation: `bar-pulse 1.2s ease-in-out ${i * 0.15}s infinite`,
+            }} />
+          ))}
+        </div>
+        <style>{`
+          @keyframes bar-pulse {
+            0%, 100% { transform: scaleY(0.4); background: var(--border); }
+            50% { transform: scaleY(1); background: var(--accent); }
+          }
+        `}</style>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-center text-green-600 font-medium">✅ Visual generada</div>
-      <div className="relative w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-lg">
-        <Image
+    <div className="animate-fade-in" style={{ width: '100%' }}>
+      {/* Image */}
+      <div style={{ position: 'relative', borderRadius: '4px', overflow: 'hidden' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={outputUrl}
           alt="Output generado"
-          width={800}
-          height={800}
-          className="w-full h-auto"
+          style={{ width: '100%', height: 'auto', display: 'block' }}
         />
+        {/* Overlay badge */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
+          padding: '24px 16px 14px',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        }}>
+          <div>
+            {brand && (
+              <p style={{ color: 'white', fontSize: '13px', fontStyle: 'italic', fontFamily: 'var(--font-display)', marginBottom: '2px' }}>
+                {brand}
+              </p>
+            )}
+            {aspectRatio && (
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                {aspectRatio}
+              </p>
+            )}
+          </div>
+          <a
+            href={outputUrl}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--bg)',
+              padding: '6px 14px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              fontWeight: 500,
+              transition: 'background 0.2s ease',
+            }}
+          >
+            Descargar
+          </a>
+        </div>
       </div>
-      <div className="text-center">
-        <a
-          href={outputUrl}
-          download
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium"
-        >
-          ⬇️ Descargar
-        </a>
+      <div style={{
+        marginTop: '12px',
+        display: 'flex', alignItems: 'center', gap: '8px',
+        color: 'var(--success)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase'
+      }}>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
+        Visual generada correctamente
       </div>
     </div>
   )
