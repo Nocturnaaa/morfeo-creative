@@ -28,11 +28,12 @@ export default function ImageUpload({ label, field, onUpload }: Props) {
 
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
       onUpload(field, data.url)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al subir'
+      console.error('[ImageUpload]', field, message)
       setError(message)
       setPreview(null)
     } finally {
