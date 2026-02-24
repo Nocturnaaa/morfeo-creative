@@ -1,16 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import ImageUpload from '@/components/ImageUpload'
-import ResultViewer from '@/components/ResultViewer'
+import RunGrid from '@/components/RunGrid'
+import BrandSelector from '@/components/BrandSelector'
+import { Brand } from '@/lib/types'
 
 const ASPECT_RATIOS = [
-  { label: '4:5', sub: 'Instagram Feed', value: '4:5' },
-  { label: '1:1', sub: 'Cuadrado', value: '1:1' },
-  { label: '9:16', sub: 'Stories / TikTok', value: '9:16' },
-  { label: '16:9', sub: 'Landscape', value: '16:9' },
+  { label: '4:5', sub: 'Feed', value: '4:5' },
+  { label: '1:1', sub: 'Square', value: '1:1' },
+  { label: '9:16', sub: 'Stories', value: '9:16' },
+  { label: '16:9', sub: 'Wide', value: '16:9' },
   { label: '3:4', sub: 'Portrait', value: '3:4' },
 ]
+
+const COUNTS = [1, 3, 5]
 
 interface FormState {
   brand_profile: string
@@ -18,6 +23,7 @@ interface FormState {
   creative_brief: string
   aspect_ratio: string
   language: string
+  count: number
   producto: string
   model: string
   marca: string
@@ -30,14 +36,16 @@ const DEFAULT_FORM: FormState = {
   creative_brief: '',
   aspect_ratio: '4:5',
   language: 'es',
+  count: 1,
   producto: '',
   model: '',
   marca: '',
   referencia: '',
 }
 
-// Minimal labeled input
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, hint, children }: {
+  label: string; required?: boolean; hint?: string; children: React.ReactNode
+}) {
   return (
     <div>
       <label style={{
@@ -48,6 +56,9 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label} {required && <span style={{ color: 'var(--accent)' }}>*</span>}
       </label>
       {children}
+      {hint && (
+        <p style={{ color: 'var(--text-faint)', fontSize: '11px', marginTop: '4px' }}>{hint}</p>
+      )}
     </div>
   )
 }
@@ -60,21 +71,46 @@ const inputStyle: React.CSSProperties = {
   padding: '9px 12px',
   color: 'var(--text)',
   outline: 'none',
+  fontFamily: 'var(--font-mono), monospace',
+  fontSize: '13px',
   transition: 'border-color 0.2s ease',
+}
+
+function toggleBtn(active: boolean): React.CSSProperties {
+  return {
+    padding: '6px 14px',
+    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+    borderRadius: '3px',
+    background: active ? 'var(--accent-dim)' : 'transparent',
+    color: active ? 'var(--accent)' : 'var(--text-muted)',
+    fontSize: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    fontFamily: 'var(--font-mono), monospace',
+  }
 }
 
 export default function Home() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM)
   const [loading, setLoading] = useState(false)
-  const [runId, setRunId] = useState<string | null>(null)
+  const [runIds, setRunIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [focusedInput, setFocusedInput] = useState<string | null>(null)
+  const [focused, setFocused] = useState<string | null>(null)
 
-  const setField = (field: keyof FormState, value: string) =>
+  const setField = (field: keyof FormState, value: string | number) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
   const handleImageUpload = (field: string, url: string) =>
     setForm(prev => ({ ...prev, [field]: url }))
+
+  const handleBrandSelect = (brand: Brand) => {
+    setForm(prev => ({
+      ...prev,
+      brand_profile: brand.brand_profile,
+      product_url: brand.product_url || prev.product_url,
+      marca: brand.logo_url || prev.marca,
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +118,7 @@ export default function Home() {
 
     setError(null)
     setLoading(true)
-    setRunId(null)
+    setRunIds([])
 
     try {
       const res = await fetch('/api/generate', {
@@ -92,10 +128,9 @@ export default function Home() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setRunId(data.run_id)
+      setRunIds(data.run_ids)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al iniciar el workflow'
-      setError(message)
+      setError(err instanceof Error ? err.message : 'Error al iniciar el workflow')
     } finally {
       setLoading(false)
     }
@@ -103,13 +138,13 @@ export default function Home() {
 
   const handleReset = () => {
     setForm(DEFAULT_FORM)
-    setRunId(null)
+    setRunIds([])
     setError(null)
   }
 
-  const getFocusStyle = (name: string): React.CSSProperties => ({
+  const focusStyle = (name: string): React.CSSProperties => ({
     ...inputStyle,
-    borderColor: focusedInput === name ? 'var(--accent)' : 'var(--border)',
+    borderColor: focused === name ? 'var(--accent)' : 'var(--border)',
   })
 
   return (
@@ -124,129 +159,132 @@ export default function Home() {
         alignItems: 'center',
         justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'rgba(12, 12, 11, 0.92)',
+        background: 'rgba(12,12,11,0.92)',
         backdropFilter: 'blur(12px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
           <span style={{
             fontFamily: 'var(--font-display)',
-            fontSize: '20px',
-            fontStyle: 'italic',
-            color: 'var(--text)',
-            letterSpacing: '-0.01em',
-          }}>
-            Morfeo Creative
-          </span>
-          <span style={{
-            fontSize: '10px', letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: 'var(--text-muted)',
-          }}>
+            fontSize: '20px', fontStyle: 'italic',
+            color: 'var(--text)', letterSpacing: '-0.01em',
+          }}>Morfeo Creative</span>
+          <span style={{ fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             AI Visual Studio
           </span>
         </div>
-        <div style={{
-          width: '8px', height: '8px', borderRadius: '50%',
-          background: 'var(--success)',
-          boxShadow: '0 0 6px var(--success)',
-        }} title="Online" />
+        <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <span style={{
+            padding: '5px 12px', borderRadius: '3px',
+            background: 'var(--accent-dim)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)', fontSize: '11px',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+          }}>Studio</span>
+          <Link href="/gallery" style={{
+            padding: '5px 12px', borderRadius: '3px',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)', fontSize: '11px',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            textDecoration: 'none', transition: 'all 0.15s ease',
+          }}>Galería</Link>
+          <div style={{
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: 'var(--success)', boxShadow: '0 0 6px var(--success)',
+            marginLeft: '8px',
+          }} />
+        </nav>
       </header>
 
-      {/* Content */}
+      {/* Split layout */}
       <div style={{
         flex: 1, display: 'grid',
         gridTemplateColumns: '1fr 1fr',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        width: '100%',
-        padding: '0',
+        maxWidth: '1280px', margin: '0 auto', width: '100%',
       }}>
 
         {/* LEFT — Form */}
-        <div style={{
-          borderRight: '1px solid var(--border-light)',
-          padding: '36px 32px',
-          overflowY: 'auto',
-        }}>
-          <div style={{ marginBottom: '28px' }}>
+        <div style={{ borderRight: '1px solid var(--border-light)', padding: '32px', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '24px' }}>
             <h1 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '28px',
-              fontStyle: 'italic',
-              color: 'var(--text)',
-              marginBottom: '6px',
-              lineHeight: 1.1,
-            }}>
-              Nueva generación
-            </h1>
+              fontFamily: 'var(--font-display)', fontSize: '26px',
+              fontStyle: 'italic', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.1,
+            }}>Nueva generación</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-              Completá los datos de la marca y corré el workflow.
+              Completá los datos y corré el workflow.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-            {/* Brand + URL */}
-            <Field label="Marca" required>
-              <input
-                type="text"
-                required
-                value={form.brand_profile}
-                onChange={e => setField('brand_profile', e.target.value)}
-                onFocus={() => setFocusedInput('brand')}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Nike, Rayban, Morfeo..."
-                style={getFocusStyle('brand')}
+            {/* Brand selector */}
+            <Field label="Marca guardada">
+              <BrandSelector
+                brandProfile={form.brand_profile}
+                productUrl={form.product_url}
+                logoUrl={form.marca}
+                onSelect={handleBrandSelect}
+                onSave={() => {}}
               />
             </Field>
 
-            <Field label="URL del producto o página">
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+              <span style={{ color: 'var(--text-faint)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                o completá manualmente
+              </span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+            </div>
+
+            {/* Brand name */}
+            <Field label="Nombre de marca" required>
+              <input
+                type="text" required
+                value={form.brand_profile}
+                onChange={e => setField('brand_profile', e.target.value)}
+                onFocus={() => setFocused('brand')}
+                onBlur={() => setFocused(null)}
+                placeholder="Nike, Rayban, Morfeo..."
+                style={focusStyle('brand')}
+              />
+            </Field>
+
+            {/* Product URL */}
+            <Field label="URL del producto o marca" hint="El workflow analiza colores y estilo de la página.">
               <input
                 type="url"
                 value={form.product_url}
                 onChange={e => setField('product_url', e.target.value)}
-                onFocus={() => setFocusedInput('url')}
-                onBlur={() => setFocusedInput(null)}
+                onFocus={() => setFocused('url')}
+                onBlur={() => setFocused(null)}
                 placeholder="https://marca.com/producto"
-                style={getFocusStyle('url')}
+                style={focusStyle('url')}
               />
-              <p style={{ color: 'var(--text-faint)', fontSize: '11px', marginTop: '4px' }}>
-                El workflow analiza colores, estilo y paleta de la marca.
-              </p>
             </Field>
 
+            {/* Creative brief */}
             <Field label="Brief creativo">
               <textarea
                 rows={3}
                 value={form.creative_brief}
                 onChange={e => setField('creative_brief', e.target.value)}
-                onFocus={() => setFocusedInput('brief')}
-                onBlur={() => setFocusedInput(null)}
+                onFocus={() => setFocused('brief')}
+                onBlur={() => setFocused(null)}
                 placeholder="Describí la idea, concepto o mensaje..."
-                style={{ ...getFocusStyle('brief'), resize: 'none' }}
+                style={{ ...focusStyle('brief'), resize: 'none' }}
               />
             </Field>
 
-            {/* Format selector */}
-            <Field label="Formato de output">
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {/* Aspect ratio */}
+            <Field label="Formato">
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                 {ASPECT_RATIOS.map(r => (
-                  <button
-                    key={r.value}
-                    type="button"
+                  <button key={r.value} type="button"
                     onClick={() => setField('aspect_ratio', r.value)}
                     style={{
-                      padding: '6px 12px',
-                      border: `1px solid ${form.aspect_ratio === r.value ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: '3px',
-                      background: form.aspect_ratio === r.value ? 'var(--accent-dim)' : 'transparent',
-                      color: form.aspect_ratio === r.value ? 'var(--accent)' : 'var(--text-muted)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '1px',
+                      ...toggleBtn(form.aspect_ratio === r.value),
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', gap: '1px', padding: '6px 10px',
                     }}
                   >
                     <span style={{ fontWeight: 500 }}>{r.label}</span>
@@ -256,42 +294,37 @@ export default function Home() {
               </div>
             </Field>
 
-            {/* Language */}
-            <Field label="Idioma">
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[{ label: 'Español', value: 'es' }, { label: 'English', value: 'en' }].map(l => (
-                  <button
-                    key={l.value}
-                    type="button"
-                    onClick={() => setField('language', l.value)}
-                    style={{
-                      padding: '7px 16px',
-                      border: `1px solid ${form.language === l.value ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: '3px',
-                      background: form.language === l.value ? 'var(--accent-dim)' : 'transparent',
-                      color: form.language === l.value ? 'var(--accent)' : 'var(--text-muted)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            </Field>
+            {/* Language + Count */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Field label="Idioma">
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {[{ label: 'ES', value: 'es' }, { label: 'EN', value: 'en' }].map(l => (
+                    <button key={l.value} type="button"
+                      onClick={() => setField('language', l.value)}
+                      style={toggleBtn(form.language === l.value)}
+                    >{l.label}</button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Variaciones">
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {COUNTS.map(n => (
+                    <button key={n} type="button"
+                      onClick={() => setField('count', n)}
+                      style={toggleBtn(form.count === n)}
+                    >{n}</button>
+                  ))}
+                </div>
+              </Field>
+            </div>
 
             {/* Image uploads */}
             <div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                marginBottom: '14px',
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
-                <span style={{
-                  color: 'var(--text-muted)', fontSize: '10px',
-                  letterSpacing: '0.1em', textTransform: 'uppercase',
-                }}>Referencias visuales</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  Referencias visuales
+                </span>
                 <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -305,129 +338,84 @@ export default function Home() {
             {/* Error */}
             {error && (
               <div style={{
-                background: 'rgba(232, 84, 84, 0.08)',
-                border: '1px solid rgba(232, 84, 84, 0.3)',
-                borderRadius: '4px',
-                padding: '10px 14px',
-                color: 'var(--error)',
-                fontSize: '12px',
-              }}>
-                {error}
-              </div>
+                background: 'rgba(232,84,84,0.08)', border: '1px solid rgba(232,84,84,0.3)',
+                borderRadius: '4px', padding: '10px 14px',
+                color: 'var(--error)', fontSize: '12px',
+              }}>{error}</div>
             )}
 
-            {/* Actions */}
+            {/* Submit */}
             <div style={{ display: 'flex', gap: '8px', paddingTop: '4px' }}>
-              <button
-                type="submit"
-                disabled={loading || !form.brand_profile}
+              <button type="submit" disabled={loading || !form.brand_profile}
                 style={{
                   flex: 1,
                   background: loading || !form.brand_profile ? 'var(--surface-2)' : 'var(--accent)',
                   color: loading || !form.brand_profile ? 'var(--text-muted)' : 'var(--bg)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '11px 20px',
-                  fontSize: '12px',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  fontWeight: 500,
-                  cursor: loading || !form.brand_profile ? 'not-allowed' : 'pointer',
+                  border: 'none', borderRadius: '4px',
+                  padding: '11px 20px', fontSize: '12px',
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  fontWeight: 500, cursor: loading || !form.brand_profile ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-mono), monospace',
                   transition: 'all 0.2s ease',
-                  fontFamily: 'var(--font-mono)',
                 }}
               >
-                {loading ? 'iniciando...' : 'Generar visual →'}
+                {loading
+                  ? `iniciando ${form.count > 1 ? `${form.count} variaciones` : ''}...`
+                  : `Generar${form.count > 1 ? ` × ${form.count}` : ''} →`}
               </button>
-
-              {(runId || error) && (
-                <button
-                  type="button"
-                  onClick={handleReset}
+              {(runIds.length > 0 || error) && (
+                <button type="button" onClick={handleReset}
                   style={{
-                    padding: '11px 16px',
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: '4px',
-                    color: 'var(--text-muted)',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-mono)',
-                    letterSpacing: '0.06em',
+                    padding: '11px 16px', background: 'transparent',
+                    border: '1px solid var(--border)', borderRadius: '4px',
+                    color: 'var(--text-muted)', fontSize: '12px',
+                    cursor: 'pointer', fontFamily: 'var(--font-mono), monospace',
                   }}
-                >
-                  Nueva
-                </button>
+                >Nueva</button>
               )}
             </div>
           </form>
         </div>
 
         {/* RIGHT — Output */}
-        <div style={{
-          padding: '36px 32px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          <div style={{ marginBottom: '28px' }}>
+        <div style={{ padding: '32px', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '24px' }}>
             <h2 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '28px',
-              fontStyle: 'italic',
-              color: 'var(--text)',
-              marginBottom: '6px',
-              lineHeight: 1.1,
-            }}>
-              Output
-            </h2>
+              fontFamily: 'var(--font-display)', fontSize: '26px',
+              fontStyle: 'italic', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.1,
+            }}>Output</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-              El resultado generado aparecerá acá.
+              {runIds.length > 1
+                ? `${runIds.length} variaciones generándose en paralelo`
+                : 'El resultado generado aparecerá acá.'}
             </p>
           </div>
 
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: runId ? 'flex-start' : 'center',
-            justifyContent: 'center',
-          }}>
-            {runId ? (
-              <div style={{ width: '100%' }}>
-                <ResultViewer
-                  runId={runId}
-                  brand={form.brand_profile}
-                  aspectRatio={form.aspect_ratio}
-                />
+          {runIds.length > 0 ? (
+            <RunGrid runIds={runIds} brand={form.brand_profile} aspectRatio={form.aspect_ratio} />
+          ) : (
+            <div style={{
+              height: '400px', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', flexDirection: 'column', gap: '12px',
+            }}>
+              <div style={{
+                width: '64px', height: '64px',
+                border: '1px solid var(--border)', borderRadius: '4px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{ width: '24px', height: '24px', background: 'var(--text-faint)', borderRadius: '2px' }} />
               </div>
-            ) : (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: '64px', height: '64px',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  margin: '0 auto 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <div style={{ width: '24px', height: '24px', background: 'var(--text-faint)', borderRadius: '2px' }} />
-                </div>
-                <p style={{ color: 'var(--text-faint)', fontSize: '12px', letterSpacing: '0.06em' }}>
-                  Esperando generación
-                </p>
-              </div>
-            )}
-          </div>
+              <p style={{ color: 'var(--text-faint)', fontSize: '12px', letterSpacing: '0.06em' }}>
+                Esperando generación
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
       <footer style={{
-        borderTop: '1px solid var(--border-light)',
-        padding: '12px 32px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderTop: '1px solid var(--border-light)', padding: '12px 32px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <span style={{ color: 'var(--text-faint)', fontSize: '11px', letterSpacing: '0.06em' }}>
           MORFEO CREATIVE · AI VISUAL STUDIO
