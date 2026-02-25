@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import ImageUpload from '@/components/ImageUpload'
 import RunGrid from '@/components/RunGrid'
@@ -90,12 +90,33 @@ function toggleBtn(active: boolean): React.CSSProperties {
   }
 }
 
+const STORAGE_KEY = 'morfeo_active_runs'
+
 export default function Home() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM)
   const [loading, setLoading] = useState(false)
   const [runIds, setRunIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [focused, setFocused] = useState<string | null>(null)
+
+  // Restore in-progress runs on mount (survives navigation)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const ids = JSON.parse(saved) as string[]
+        if (ids.length > 0) setRunIds(ids)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // Persist runIds to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (runIds.length > 0) localStorage.setItem(STORAGE_KEY, JSON.stringify(runIds))
+      else localStorage.removeItem(STORAGE_KEY)
+    } catch { /* ignore */ }
+  }, [runIds])
 
   const setField = (field: keyof FormState, value: string | number) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -108,6 +129,7 @@ export default function Home() {
       ...prev,
       brand_name: brand.brand_profile,
       logo: brand.logo_url || prev.logo,
+      product: brand.product_url || prev.product,
     }))
   }
 
@@ -139,6 +161,7 @@ export default function Home() {
     setForm(DEFAULT_FORM)
     setRunIds([])
     setError(null)
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }
 
   const focusStyle = (name: string): React.CSSProperties => ({
@@ -213,7 +236,7 @@ export default function Home() {
             <Field label="Marca guardada">
               <BrandSelector
                 brandProfile={form.brand_name}
-                productUrl={''}
+                productUrl={form.product}
                 logoUrl={form.logo}
                 onSelect={handleBrandSelect}
                 onSave={() => {}}

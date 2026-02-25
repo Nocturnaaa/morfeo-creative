@@ -15,6 +15,21 @@ export default function Gallery() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
   const [selected, setSelected] = useState<Generation | null>(null)
+  // All unique brands — loaded once, independent of active filter
+  const [brands, setBrands] = useState<string[]>([])
+
+  // Load all brand names once at mount (no filter)
+  useEffect(() => {
+    fetch('/api/generations')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const unique = Array.from(new Set((data as Generation[]).map(g => g.brand_profile))).sort()
+          setBrands(unique)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const fetchGenerations = useCallback(async () => {
     setLoading(true)
@@ -29,9 +44,6 @@ export default function Gallery() {
   }, [filter])
 
   useEffect(() => { fetchGenerations() }, [fetchGenerations])
-
-  // Get unique brands for filter
-  const brands = Array.from(new Set(generations.map(g => g.brand_profile))).sort()
 
   return (
     <main style={{ minHeight: '100vh', background: 'var(--bg)' }}>
