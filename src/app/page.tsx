@@ -5,42 +5,43 @@ import Link from 'next/link'
 import ImageUpload from '@/components/ImageUpload'
 import RunGrid from '@/components/RunGrid'
 import BrandSelector from '@/components/BrandSelector'
+import AdTypeSelector from '@/components/AdTypeSelector'
 import { Brand } from '@/lib/types'
 
 const ASPECT_RATIOS = [
-  { label: '4:5', sub: 'Feed', value: '4:5' },
-  { label: '1:1', sub: 'Square', value: '1:1' },
+  { label: '4:5',  sub: 'Feed',    value: '4:5'  },
+  { label: '1:1',  sub: 'Square',  value: '1:1'  },
   { label: '9:16', sub: 'Stories', value: '9:16' },
-  { label: '16:9', sub: 'Wide', value: '16:9' },
-  { label: '3:4', sub: 'Portrait', value: '3:4' },
+  { label: '16:9', sub: 'Wide',    value: '16:9' },
+  { label: '3:4',  sub: 'Portrait',value: '3:4'  },
 ]
 
 const COUNTS = [1, 3, 5]
 
 interface FormState {
-  brand_profile: string
-  product_url: string
-  creative_brief: string
+  brand_name: string
+  target_audience: string
+  user_brief: string
   aspect_ratio: string
   language: string
   count: number
-  producto: string
+  profile_id: string
+  product: string
+  logo: string
   model: string
-  marca: string
-  referencia: string
 }
 
 const DEFAULT_FORM: FormState = {
-  brand_profile: '',
-  product_url: '',
-  creative_brief: '',
+  brand_name: '',
+  target_audience: '',
+  user_brief: '',
   aspect_ratio: '4:5',
   language: 'es',
   count: 1,
-  producto: '',
+  profile_id: 'standard',
+  product: '',
+  logo: '',
   model: '',
-  marca: '',
-  referencia: '',
 }
 
 function Field({ label, required, hint, children }: {
@@ -56,14 +57,12 @@ function Field({ label, required, hint, children }: {
         {label} {required && <span style={{ color: 'var(--accent)' }}>*</span>}
       </label>
       {children}
-      {hint && (
-        <p style={{ color: 'var(--text-faint)', fontSize: '11px', marginTop: '4px' }}>{hint}</p>
-      )}
+      {hint && <p style={{ color: 'var(--text-faint)', fontSize: '11px', marginTop: '4px' }}>{hint}</p>}
     </div>
   )
 }
 
-const inputStyle: React.CSSProperties = {
+const inputBase: React.CSSProperties = {
   width: '100%',
   background: 'var(--surface)',
   border: '1px solid var(--border)',
@@ -78,7 +77,7 @@ const inputStyle: React.CSSProperties = {
 
 function toggleBtn(active: boolean): React.CSSProperties {
   return {
-    padding: '6px 14px',
+    padding: '6px 12px',
     border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
     borderRadius: '3px',
     background: active ? 'var(--accent-dim)' : 'transparent',
@@ -106,15 +105,14 @@ export default function Home() {
   const handleBrandSelect = (brand: Brand) => {
     setForm(prev => ({
       ...prev,
-      brand_profile: brand.brand_profile,
-      product_url: brand.product_url || prev.product_url,
-      marca: brand.logo_url || prev.marca,
+      brand_name: brand.brand_profile,
+      logo: brand.logo_url || prev.logo,
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.brand_profile) return
+    if (!form.brand_name || !form.profile_id) return
 
     setError(null)
     setLoading(true)
@@ -143,7 +141,7 @@ export default function Home() {
   }
 
   const focusStyle = (name: string): React.CSSProperties => ({
-    ...inputStyle,
+    ...inputBase,
     borderColor: focused === name ? 'var(--accent)' : 'var(--border)',
   })
 
@@ -153,20 +151,15 @@ export default function Home() {
       {/* Header */}
       <header style={{
         borderBottom: '1px solid var(--border-light)',
-        padding: '0 32px',
-        height: '52px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: '0 32px', height: '52px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'rgba(12,12,11,0.92)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(12,12,11,0.92)', backdropFilter: 'blur(12px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
           <span style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '20px', fontStyle: 'italic',
-            color: 'var(--text)', letterSpacing: '-0.01em',
+            fontFamily: 'var(--font-display)', fontSize: '20px',
+            fontStyle: 'italic', color: 'var(--text)', letterSpacing: '-0.01em',
           }}>Morfeo Creative</span>
           <span style={{ fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             AI Visual Studio
@@ -175,8 +168,7 @@ export default function Home() {
         <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
           <span style={{
             padding: '5px 12px', borderRadius: '3px',
-            background: 'var(--accent-dim)',
-            border: '1px solid var(--accent)',
+            background: 'var(--accent-dim)', border: '1px solid var(--accent)',
             color: 'var(--accent)', fontSize: '11px',
             letterSpacing: '0.08em', textTransform: 'uppercase',
           }}>Studio</span>
@@ -185,7 +177,7 @@ export default function Home() {
             border: '1px solid var(--border)',
             color: 'var(--text-muted)', fontSize: '11px',
             letterSpacing: '0.08em', textTransform: 'uppercase',
-            textDecoration: 'none', transition: 'all 0.15s ease',
+            textDecoration: 'none',
           }}>Galería</Link>
           <div style={{
             width: '8px', height: '8px', borderRadius: '50%',
@@ -203,25 +195,25 @@ export default function Home() {
       }}>
 
         {/* LEFT — Form */}
-        <div style={{ borderRight: '1px solid var(--border-light)', padding: '32px', overflowY: 'auto' }}>
-          <div style={{ marginBottom: '24px' }}>
+        <div style={{ borderRight: '1px solid var(--border-light)', padding: '28px 32px', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '20px' }}>
             <h1 style={{
-              fontFamily: 'var(--font-display)', fontSize: '26px',
+              fontFamily: 'var(--font-display)', fontSize: '24px',
               fontStyle: 'italic', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.1,
             }}>Nueva generación</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-              Completá los datos y corré el workflow.
+              ADS 1.19 Morpheus — 20 perfiles publicitarios
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
             {/* Brand selector */}
             <Field label="Marca guardada">
               <BrandSelector
-                brandProfile={form.brand_profile}
-                productUrl={form.product_url}
-                logoUrl={form.marca}
+                brandProfile={form.brand_name}
+                productUrl={''}
+                logoUrl={form.logo}
                 onSelect={handleBrandSelect}
                 onSave={() => {}}
               />
@@ -231,7 +223,7 @@ export default function Home() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
               <span style={{ color: 'var(--text-faint)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                o completá manualmente
+                datos de la marca
               </span>
               <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
             </div>
@@ -240,79 +232,89 @@ export default function Home() {
             <Field label="Nombre de marca" required>
               <input
                 type="text" required
-                value={form.brand_profile}
-                onChange={e => setField('brand_profile', e.target.value)}
+                value={form.brand_name}
+                onChange={e => setField('brand_name', e.target.value)}
                 onFocus={() => setFocused('brand')}
                 onBlur={() => setFocused(null)}
-                placeholder="Nike, Rayban, Morfeo..."
+                placeholder="Nike, Morfeo, Quiero Ser Santo..."
                 style={focusStyle('brand')}
               />
             </Field>
 
-            {/* Product URL */}
-            <Field label="URL del producto o marca" hint="El workflow analiza colores y estilo de la página.">
-              <input
-                type="url"
-                value={form.product_url}
-                onChange={e => setField('product_url', e.target.value)}
-                onFocus={() => setFocused('url')}
+            {/* Target audience */}
+            <Field label="Audiencia objetivo" hint="Quién verá este anuncio. Ej: Mujeres 25-35, interesadas en moda sostenible.">
+              <textarea
+                rows={2}
+                value={form.target_audience}
+                onChange={e => setField('target_audience', e.target.value)}
+                onFocus={() => setFocused('audience')}
                 onBlur={() => setFocused(null)}
-                placeholder="https://marca.com/producto"
-                style={focusStyle('url')}
+                placeholder="Describe el público objetivo del anuncio..."
+                style={{ ...focusStyle('audience'), resize: 'none' }}
               />
             </Field>
 
-            {/* Creative brief */}
-            <Field label="Brief creativo">
+            {/* Brief */}
+            <Field label="Brief creativo" hint="El mensaje, concepto o contexto del anuncio.">
               <textarea
                 rows={3}
-                value={form.creative_brief}
-                onChange={e => setField('creative_brief', e.target.value)}
+                value={form.user_brief}
+                onChange={e => setField('user_brief', e.target.value)}
                 onFocus={() => setFocused('brief')}
                 onBlur={() => setFocused(null)}
-                placeholder="Describí la idea, concepto o mensaje..."
+                placeholder="Describí el objetivo del anuncio, la oferta o el mensaje clave..."
                 style={{ ...focusStyle('brief'), resize: 'none' }}
               />
             </Field>
 
-            {/* Aspect ratio */}
-            <Field label="Formato">
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                {ASPECT_RATIOS.map(r => (
-                  <button key={r.value} type="button"
-                    onClick={() => setField('aspect_ratio', r.value)}
-                    style={{
-                      ...toggleBtn(form.aspect_ratio === r.value),
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', gap: '1px', padding: '6px 10px',
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{r.label}</span>
-                    <span style={{ fontSize: '9px', opacity: 0.7 }}>{r.sub}</span>
-                  </button>
-                ))}
+            {/* Ad type selector */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  tipo de creativo
+                </span>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
               </div>
-            </Field>
+              <AdTypeSelector
+                value={form.profile_id}
+                onChange={(id) => setField('profile_id', id)}
+              />
+            </div>
 
-            {/* Language + Count */}
+            {/* Format + Language + Count */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <Field label="Idioma">
-                <div style={{ display: 'flex', gap: '5px' }}>
+              <Field label="Formato">
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {ASPECT_RATIOS.map(r => (
+                    <button key={r.value} type="button"
+                      onClick={() => setField('aspect_ratio', r.value)}
+                      style={{
+                        ...toggleBtn(form.aspect_ratio === r.value),
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', gap: '1px', padding: '5px 8px',
+                      }}
+                    >
+                      <span style={{ fontWeight: 500, fontSize: '11px' }}>{r.label}</span>
+                      <span style={{ fontSize: '9px', opacity: 0.7 }}>{r.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Idioma + Variaciones">
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                   {[{ label: 'ES', value: 'es' }, { label: 'EN', value: 'en' }].map(l => (
                     <button key={l.value} type="button"
                       onClick={() => setField('language', l.value)}
                       style={toggleBtn(form.language === l.value)}
                     >{l.label}</button>
                   ))}
-                </div>
-              </Field>
-              <Field label="Variaciones">
-                <div style={{ display: 'flex', gap: '5px' }}>
+                  <div style={{ width: '1px', background: 'var(--border)', margin: '0 2px' }} />
                   {COUNTS.map(n => (
                     <button key={n} type="button"
                       onClick={() => setField('count', n)}
                       style={toggleBtn(form.count === n)}
-                    >{n}</button>
+                    >×{n}</button>
                   ))}
                 </div>
               </Field>
@@ -323,15 +325,14 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
                 <span style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Referencias visuales
+                  assets visuales
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <ImageUpload label="Producto" field="producto" onUpload={handleImageUpload} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <ImageUpload label="Producto" field="product" onUpload={handleImageUpload} />
+                <ImageUpload label="Logo" field="logo" onUpload={handleImageUpload} />
                 <ImageUpload label="Modelo" field="model" onUpload={handleImageUpload} />
-                <ImageUpload label="Logo de marca" field="marca" onUpload={handleImageUpload} />
-                <ImageUpload label="Referencia" field="referencia" onUpload={handleImageUpload} />
               </div>
             </div>
 
@@ -346,22 +347,24 @@ export default function Home() {
 
             {/* Submit */}
             <div style={{ display: 'flex', gap: '8px', paddingTop: '4px' }}>
-              <button type="submit" disabled={loading || !form.brand_profile}
+              <button type="submit"
+                disabled={loading || !form.brand_name || !form.profile_id}
                 style={{
                   flex: 1,
-                  background: loading || !form.brand_profile ? 'var(--surface-2)' : 'var(--accent)',
-                  color: loading || !form.brand_profile ? 'var(--text-muted)' : 'var(--bg)',
+                  background: loading || !form.brand_name ? 'var(--surface-2)' : 'var(--accent)',
+                  color: loading || !form.brand_name ? 'var(--text-muted)' : 'var(--bg)',
                   border: 'none', borderRadius: '4px',
                   padding: '11px 20px', fontSize: '12px',
                   letterSpacing: '0.1em', textTransform: 'uppercase',
-                  fontWeight: 500, cursor: loading || !form.brand_profile ? 'not-allowed' : 'pointer',
+                  fontWeight: 500,
+                  cursor: loading || !form.brand_name ? 'not-allowed' : 'pointer',
                   fontFamily: 'var(--font-mono), monospace',
                   transition: 'all 0.2s ease',
                 }}
               >
                 {loading
-                  ? `iniciando ${form.count > 1 ? `${form.count} variaciones` : ''}...`
-                  : `Generar${form.count > 1 ? ` × ${form.count}` : ''} →`}
+                  ? `generando${form.count > 1 ? ` ×${form.count}` : ''}...`
+                  : `Generar${form.count > 1 ? ` ×${form.count}` : ''} →`}
               </button>
               {(runIds.length > 0 || error) && (
                 <button type="button" onClick={handleReset}
@@ -378,30 +381,29 @@ export default function Home() {
         </div>
 
         {/* RIGHT — Output */}
-        <div style={{ padding: '32px', overflowY: 'auto' }}>
-          <div style={{ marginBottom: '24px' }}>
+        <div style={{ padding: '28px 32px', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '20px' }}>
             <h2 style={{
-              fontFamily: 'var(--font-display)', fontSize: '26px',
+              fontFamily: 'var(--font-display)', fontSize: '24px',
               fontStyle: 'italic', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.1,
             }}>Output</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
               {runIds.length > 1
-                ? `${runIds.length} variaciones generándose en paralelo`
-                : 'El resultado generado aparecerá acá.'}
+                ? `${runIds.length} variaciones con seeds distintos`
+                : 'El resultado aparecerá acá.'}
             </p>
           </div>
 
           {runIds.length > 0 ? (
-            <RunGrid runIds={runIds} brand={form.brand_profile} aspectRatio={form.aspect_ratio} />
+            <RunGrid runIds={runIds} brand={form.brand_name} aspectRatio={form.aspect_ratio} />
           ) : (
             <div style={{
               height: '400px', display: 'flex', alignItems: 'center',
               justifyContent: 'center', flexDirection: 'column', gap: '12px',
             }}>
               <div style={{
-                width: '64px', height: '64px',
-                border: '1px solid var(--border)', borderRadius: '4px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '64px', height: '64px', border: '1px solid var(--border)',
+                borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <div style={{ width: '24px', height: '24px', background: 'var(--text-faint)', borderRadius: '2px' }} />
               </div>
@@ -421,7 +423,7 @@ export default function Home() {
           MORFEO CREATIVE · AI VISUAL STUDIO
         </span>
         <span style={{ color: 'var(--text-faint)', fontSize: '11px' }}>
-          Powered by ComfyDeploy
+          ADS 1.19 Morpheus · ComfyDeploy
         </span>
       </footer>
     </main>
