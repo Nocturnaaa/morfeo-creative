@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Profile not found: ${body.profile_id}` }, { status: 400 })
   }
 
-  const inputs: AdsInputs = {
+  // models[] from library: cycle through selected models per variation
+  // e.g. 3 variations + 2 models selected → [model0, model1, model0]
+  const selectedModels: string[] = (body.models || []).filter(Boolean)
+
+  const baseInputs: AdsInputs = {
     user_brief: `USER_BRIEF:\n\n${body.user_brief || ''}`,
     target_audience: `TARGET AUDIENCE:\n\n${body.target_audience || ''}`,
     language: `Language: ${(body.language || 'es').toUpperCase()}`,
@@ -26,14 +30,17 @@ export async function POST(req: NextRequest) {
     aspect_ratio: body.aspect_ratio || '4:5',
     product: body.product || undefined,
     logo: body.logo || undefined,
-    model: body.model || undefined,
+    model: undefined, // set per variation below
   }
 
-  // Fire N runs in parallel with different seeds
+  // Fire N runs in parallel with different seeds and cycled models
   const runResults = await Promise.allSettled(
-    Array.from({ length: count }, () => {
+    Array.from({ length: count }, (_, i) => {
       const seed = Math.floor(Math.random() * 999999)
-      return startRun({ ...inputs, seed })
+      const modelUrl = selectedModels.length > 0
+        ? selectedModels[i % selectedModels.length]
+        : undefined
+      return startRun({ ...baseInputs, seed, model: modelUrl })
     })
   )
 

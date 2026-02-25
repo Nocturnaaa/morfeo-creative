@@ -6,6 +6,7 @@ import ImageUpload from '@/components/ImageUpload'
 import RunGrid from '@/components/RunGrid'
 import BrandSelector from '@/components/BrandSelector'
 import AdTypeSelector from '@/components/AdTypeSelector'
+import ModelSelector from '@/components/ModelSelector'
 import { Brand } from '@/lib/types'
 
 const ASPECT_RATIOS = [
@@ -28,7 +29,7 @@ interface FormState {
   profile_id: string
   product: string
   logo: string
-  model: string
+  models: string[]   // one per variation (or fewer — cycled)
 }
 
 const DEFAULT_FORM: FormState = {
@@ -41,7 +42,7 @@ const DEFAULT_FORM: FormState = {
   profile_id: 'standard',
   product: '',
   logo: '',
-  model: '',
+  models: [],
 }
 
 function Field({ label, required, hint, children }: {
@@ -312,7 +313,11 @@ export default function Home() {
                   <div style={{ width: '1px', background: 'var(--border)', margin: '0 2px' }} />
                   {COUNTS.map(n => (
                     <button key={n} type="button"
-                      onClick={() => setField('count', n)}
+                      onClick={() => setForm(prev => ({
+                        ...prev,
+                        count: n,
+                        models: prev.models.slice(0, n), // trim if count decreases
+                      }))}
                       style={toggleBtn(form.count === n)}
                     >×{n}</button>
                   ))}
@@ -329,11 +334,22 @@ export default function Home() {
                 </span>
                 <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                 <ImageUpload label="Producto" field="product" onUpload={handleImageUpload} />
                 <ImageUpload label="Logo" field="logo" onUpload={handleImageUpload} />
-                <ImageUpload label="Modelo" field="model" onUpload={handleImageUpload} />
               </div>
+              <Field
+                label="Modelo / Talent"
+                hint={form.count > 1
+                  ? `Seleccioná hasta ${form.count} modelos — uno por variación.`
+                  : 'Opcional. Seleccioná el modelo a usar en el anuncio.'}
+              >
+                <ModelSelector
+                  maxSelect={form.count}
+                  selected={form.models}
+                  onChange={urls => setForm(prev => ({ ...prev, models: urls.slice(0, prev.count) }))}
+                />
+              </Field>
             </div>
 
             {/* Error */}
@@ -389,7 +405,7 @@ export default function Home() {
             }}>Output</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
               {runIds.length > 1
-                ? `${runIds.length} variaciones con seeds distintos`
+                ? `${runIds.length} variaciones · ${form.models.length > 1 ? `${form.models.length} modelos` : 'seeds distintos'}`
                 : 'El resultado aparecerá acá.'}
             </p>
           </div>
