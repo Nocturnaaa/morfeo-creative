@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
   'not-started': 'en cola',
   'running': 'generando',
   'uploading': 'procesando',
-  'success': 'completado',
+  'success': 'recuperando imagen',
   'failed': 'error',
 }
 
@@ -29,9 +29,9 @@ export default function ResultViewer({ runId, brand, aspectRatio, onComplete }: 
     return () => clearInterval(i)
   }, [status])
 
-  // Poll status
+  // Poll status — keep polling until we have BOTH success AND outputUrl
   useEffect(() => {
-    if (status === 'success' || status === 'failed') return
+    if ((status === 'success' && outputUrl) || status === 'failed') return
 
     const poll = async () => {
       try {
@@ -48,7 +48,7 @@ export default function ResultViewer({ runId, brand, aspectRatio, onComplete }: 
     poll()
     const interval = setInterval(poll, 3000)
     return () => clearInterval(interval)
-  }, [runId, status, onComplete])
+  }, [runId, status, outputUrl, onComplete])
 
   if (status === 'failed') {
     return (

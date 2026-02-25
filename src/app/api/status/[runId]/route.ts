@@ -18,12 +18,27 @@ export async function GET(
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
-  // Extract output image URL if done
+  // Extract output image URL if done — handle multiple possible ComfyDeploy output shapes
   let outputUrl: string | undefined
   if (statusData.status === 'success' && statusData.outputs?.length) {
-    const images = statusData.outputs[0]?.data?.images
-    if (images?.length) {
-      outputUrl = images[0].url
+    for (const output of statusData.outputs) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const out = output as any
+      // Shape 1: output.data.images[0].url
+      if (out?.data?.images?.length) {
+        outputUrl = out.data.images[0].url
+        break
+      }
+      // Shape 2: output.data.url (direct)
+      if (out?.data?.url) {
+        outputUrl = out.data.url
+        break
+      }
+      // Shape 3: output.url (flat)
+      if (out?.url) {
+        outputUrl = out.url
+        break
+      }
     }
   }
 
@@ -37,6 +52,11 @@ export async function GET(
         output_url: outputUrl,
       })
       .eq('run_id', runId)
+  }
+
+  // Debug: log raw outputs when success but no URL found
+  if (statusData.status === 'success' && !outputUrl) {
+    console.warn('[status] success but no outputUrl — raw outputs:', JSON.stringify(statusData.outputs))
   }
 
   return NextResponse.json({
