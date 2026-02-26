@@ -125,12 +125,26 @@ export default function Home() {
     setForm(prev => ({ ...prev, [field]: url }))
 
   const handleBrandSelect = (brand: Brand) => {
-    setForm(prev => ({
-      ...prev,
-      brand_name: brand.brand_profile,
-      logo: brand.logo_url || prev.logo,
-      product: brand.product_url || prev.product,
-    }))
+    if (brand.settings_json) {
+      // Restore full saved form state
+      setForm(prev => ({
+        ...prev,
+        ...brand.settings_json,
+        // fallback to brand root fields if settings_json is partial
+        brand_name: brand.settings_json?.brand_name || brand.brand_profile,
+        logo:       brand.settings_json?.logo    || brand.logo_url    || prev.logo,
+        product:    brand.settings_json?.product || brand.product_url || prev.product,
+        models:     brand.settings_json?.models  || prev.models,
+      }))
+    } else {
+      // Legacy brands without settings_json — restore what we have
+      setForm(prev => ({
+        ...prev,
+        brand_name: brand.brand_profile,
+        logo:    brand.logo_url    || prev.logo,
+        product: brand.product_url || prev.product,
+      }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,9 +249,17 @@ export default function Home() {
             {/* Brand selector */}
             <Field label="Marca guardada">
               <BrandSelector
-                brandProfile={form.brand_name}
-                productUrl={form.product}
-                logoUrl={form.logo}
+                formSnapshot={{
+                  brand_name:      form.brand_name,
+                  target_audience: form.target_audience,
+                  user_brief:      form.user_brief,
+                  aspect_ratio:    form.aspect_ratio,
+                  language:        form.language,
+                  profile_id:      form.profile_id,
+                  product:         form.product,
+                  logo:            form.logo,
+                  models:          form.models,
+                }}
                 onSelect={handleBrandSelect}
                 onSave={() => {}}
               />

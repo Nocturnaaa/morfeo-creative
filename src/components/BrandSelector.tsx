@@ -1,17 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Brand } from '@/lib/types'
+import { Brand, BrandSettings } from '@/lib/types'
 
 interface Props {
-  brandProfile: string
-  productUrl: string
-  logoUrl: string
+  formSnapshot: BrandSettings   // full current form state to save
   onSelect: (brand: Brand) => void
   onSave: (name: string) => void
 }
 
-export default function BrandSelector({ brandProfile, productUrl, logoUrl, onSelect, onSave }: Props) {
+export default function BrandSelector({ formSnapshot, onSelect, onSave }: Props) {
+  const brandProfile = formSnapshot.brand_name || ''
   const [brands, setBrands] = useState<Brand[]>([])
   const [selected, setSelected] = useState<string>('')
   const [saving, setSaving] = useState(false)
@@ -43,8 +42,9 @@ export default function BrandSelector({ brandProfile, productUrl, logoUrl, onSel
         body: JSON.stringify({
           name: saveName.trim(),
           brand_profile: brandProfile,
-          product_url: productUrl || null,
-          logo_url: logoUrl || null,
+          product_url: formSnapshot.product || null,
+          logo_url: formSnapshot.logo || null,
+          settings_json: formSnapshot,   // full form snapshot
         }),
       })
       const data = await res.json()

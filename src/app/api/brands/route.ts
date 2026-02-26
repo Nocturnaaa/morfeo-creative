@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const supabase = getSupabaseAdmin()
 
+  // settings_json stores all form fields for full restore on load
+  const settings_json = body.settings_json || null
+
   const { data, error } = await supabase
     .from('brands')
     .upsert(
@@ -26,6 +29,7 @@ export async function POST(req: NextRequest) {
         brand_profile: body.brand_profile,
         product_url: body.product_url || null,
         logo_url: body.logo_url || null,
+        settings_json,
       },
       { onConflict: 'name' }
     )
